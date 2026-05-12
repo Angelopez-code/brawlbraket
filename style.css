@@ -1,0 +1,286 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: linear-gradient(145deg, #1a2a3a 0%, #0f1a24 100%);
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  padding: 2rem 1.5rem;
+  color: #f0f3f8;
+  min-height: 100vh;
+}
+
+.tournament-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card {
+  background: rgba(25, 35, 50, 0.85);
+  backdrop-filter: blur(2px);
+  border-radius: 2rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 100, 0.2);
+  transition: all 0.2s;
+}
+
+.card-header {
+  font-size: 1.6rem;
+  font-weight: bold;
+  border-left: 6px solid #f5b042;
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.card-header i {
+  font-size: 1.8rem;
+}
+
+.form-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.input-field label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: #ffd966;
+}
+
+input, select, button {
+  background: #1e2a36;
+  border: 1px solid #3e5568;
+  padding: 0.7rem 1.2rem;
+  border-radius: 1.8rem;
+  font-size: 1rem;
+  color: white;
+  transition: 0.2s;
+  font-weight: 500;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: #f5b042;
+  box-shadow: 0 0 0 2px rgba(245, 176, 66, 0.3);
+}
+
+button {
+  background: #f5b042;
+  border: none;
+  color: #1e2a2f;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0.7rem 1.8rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+button:hover {
+  background: #ffc267;
+  transform: scale(0.97);
+}
+
+button.secondary {
+  background: #2c3e44;
+  color: #ffd966;
+  border: 1px solid #ffd966;
+}
+
+button.danger {
+  background: #a13e3e;
+  color: white;
+}
+
+/* Lista de jugadores */
+.players-list {
+  background: #0f1820;
+  border-radius: 1.5rem;
+  padding: 0.8rem;
+  margin-top: 1rem;
+}
+
+.players-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.players-table th, .players-table td {
+  text-align: left;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid #2c3e44;
+}
+
+.players-table th {
+  color: #ffd966;
+  font-weight: 600;
+}
+
+.delete-player {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #ff8a7a;
+  padding: 0 0.4rem;
+  box-shadow: none;
+}
+
+.badge-count {
+  background: #f5b042;
+  color: #1e2a2f;
+  padding: 0.2rem 0.8rem;
+  border-radius: 2rem;
+  font-weight: bold;
+  margin-left: 1rem;
+}
+
+/* Brackets estilo torneo */
+.brackets-view {
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.bracket-rounds {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.round {
+  background: rgba(0,0,0,0.35);
+  border-radius: 1.5rem;
+  padding: 1rem 0.8rem;
+  min-width: 220px;
+  backdrop-filter: blur(4px);
+}
+
+.round-title {
+  text-align: center;
+  font-weight: bold;
+  background: #00000066;
+  padding: 0.4rem;
+  border-radius: 2rem;
+  margin-bottom: 1.2rem;
+  font-size: 1rem;
+  letter-spacing: 1px;
+}
+
+.matches {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.match-card {
+  background: #1b2a33;
+  border-radius: 1.2rem;
+  padding: 0.6rem;
+  border-left: 5px solid #f5b042;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: 0.1s;
+}
+
+.match-players {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.player-slot {
+  background: #0f1a1f;
+  border-radius: 2rem;
+  padding: 0.5rem 0.8rem;
+  flex: 1;
+  text-align: center;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-name {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.player-elo {
+  font-size: 0.7rem;
+  background: #2c4b3e;
+  padding: 0.2rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.btn-win {
+  background: #2c6e4f;
+  border: none;
+  font-size: 0.7rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  font-weight: bold;
+  color: white;
+}
+
+.btn-win:hover {
+  background: #3faa70;
+}
+
+.winner-badge {
+  background: #f5b042;
+  color: #1e2a2f;
+  font-size: 0.7rem;
+  border-radius: 2rem;
+  padding: 0.2rem 0.7rem;
+  font-weight: bold;
+}
+
+.match-status {
+  text-align: center;
+  font-size: 0.7rem;
+  margin-top: 0.4rem;
+  color: #ffbc6e;
+}
+
+.final-winner {
+  text-align: center;
+  background: #2c1e2b;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 3rem;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.empty-bracket {
+  text-align: center;
+  padding: 2rem;
+  color: #aab7c4;
+}
+
+@media (max-width: 780px) {
+  body { padding: 1rem; }
+  .bracket-rounds { gap: 1rem; }
+  .player-slot { font-size: 0.8rem; }
+}

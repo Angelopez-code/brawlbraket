@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Torneos Brawl Stars - Emparejamiento por ELO</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="tournament-container">
+    <div class="card">
+      <div class="card-header">
+        <span>🏆</span> Configuración del Torneo
+      </div>
+      <div class="form-group">
+        <div class="input-field">
+          <label>Tipo de torneo</label>
+          <select id="tournamentSizeSelect">
+            <option value="4">4 jugadores</option>
+            <option value="8" selected>8 jugadores</option>
+            <option value="16">16 jugadores</option>
+          </select>
+        </div>
+        <div class="input-field">
+          <label>Nombre jugador</label>
+          <input type="text" id="playerName" placeholder="Ej: LeonPro">
+        </div>
+        <div class="input-field">
+          <label>ELO competitivo</label>
+          <input type="number" id="playerElo" placeholder="Ej: 3100">
+        </div>
+        <button id="addPlayerBtn">➕ Añadir jugador</button>
+      </div>
+
+      <div class="players-list">
+        <div style="display: flex; justify-content: space-between;">
+          <strong>📋 Jugadores inscritos</strong>
+          <span id="playerCountInfo" class="badge-count">0</span>
+        </div>
+        <table class="players-table" id="playersTable">
+          <thead>
+            <tr><th>#</th><th>Nombre</th><th>ELO</th><th></th></tr>
+          </thead>
+          <tbody id="playersTbody"></tbody>
+        </table>
+        <div style="display: flex; gap: 1rem; margin-top: 1rem; justify-content: flex-end;">
+          <button id="resetPlayersBtn" class="secondary">🗑️ Limpiar jugadores</button>
+          <button id="generateBracketBtn" class="secondary" style="background:#3a6b4b;">⚡ Generar Brackets (por ELO)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="bracketCard">
+      <div class="card-header">
+        <span>🥇</span> Brackets - Enfrentamientos
+      </div>
+      <div id="bracketContent" class="brackets-view">
+        <div class="empty-bracket">✨ Añade jugadores, completa el cupo y pulsa "Generar Brackets" ✨</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 1rem;">
+      <button id="fullResetBtn" class="danger">🔄 Reiniciar torneo completo (borrar progreso)</button>
+    </div>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
