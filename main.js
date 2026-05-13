@@ -1,6 +1,6 @@
 let currentTournament = {
   size: 8,
-  players: [],
+  players: [],        // cada jugador: { id, name, description, elo (null o número) }
   bracketGenerated: false,
   matches: [],
   roundsStructure: [],
@@ -37,18 +37,45 @@ function loadPersistedState() {
     if (currentTournament.bracketGenerated && currentTournament.matches.length) {
       renderBrackets();
     } else {
-      document.getElementById('bracketContent').innerHTML = '<div class="empty-bracket">Torneo no generado. Completa los jugadores y genera brackets.</div>';
+      document.getElementById('bracketContent').innerHTML = '<div class="empty-bracket">// GENERA EL BRACKET CUANDO TODOS TENGAN ELO //</div>';
+      updateGenerateButtonState();
     }
     return true;
   } catch(e) { return false; }
 }
 
+function updateGenerateButtonState() {
+  const btn = document.getElementById('generateBracketBtn');
+  if (!btn) return;
+  const total = currentTournament.players.length;
+  const required = currentTournament.size;
+  const allHaveElo = total === required && currentTournament.players.every(p => p.elo !== null && p.elo > 0);
+  if (total === required && allHaveElo && !currentTournament.bracketGenerated) {
+    btn.disabled = false;
+    btn.textContent = 'GENERAR BRACKETS (POR ELO)';
+    btn.style.opacity = '1';
+  } else {
+    btn.disabled = true;
+    if (total !== required) btn.textContent = `FALTAN ${required - total} INSCRIPCIONES`;
+    else if (!allHaveElo) btn.textContent = `ASIGNAR ELO A ${currentTournament.players.filter(p => p.elo === null || p.elo <= 0).length} JUGADORES`;
+    else btn.textContent = 'GENERAR BRACKETS (POR ELO)';
+    btn.style.opacity = '0.6';
+  }
+}
+
 function updatePlayersUI() {
   const tbody = document.getElementById('playersTbody');
   const countSpan = document.getElementById('playerCountInfo');
-  countSpan.innerText = `${currentTournament.players.length}/${currentTournament.size}`;
-  if (currentTournament.players.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Sin jugadores aún</td></tr>';
+  const progressSpan = document.getElementById('eloProgressInfo');
+  const totalPlayers = currentTournament.players.length;
+  const required = currentTournament.size;
+  countSpan.innerText = `${totalPlayers}/${required}`;
+  const withElo = currentTournament.players.filter(p => p.elo !== null && p.elo > 0).length;
+  progressSpan.innerText = `ELO: ${withElo}/${totalPlayers}`;
+
+  if (totalPlayers === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">SIN JUGADORES INSCRITOS</td></tr>';
+    updateGenerateButtonState();
     return;
   }
   tbody.innerHTML = '';
@@ -56,14 +83,42 @@ function updatePlayersUI() {
     const row = tbody.insertRow();
     row.insertCell(0).innerText = idx+1;
     row.insertCell(1).innerText = p.name;
-    row.insertCell(2).innerText = p.elo;
-    const delCell = row.insertCell(3);
+    // Descripción con tooltip si es larga
+    const descCell = row.insertCell(2);
+    const descText = p.description || '—';
+    descCell.innerText = descText.length > 20 ? descText.substring(0, 18)+'…' : descText;
+    descCell.title = p.description || '';
+    // Celda ELO: editable si no hay torneo generado
+    const eloCell = row.insertCell(3);
+    if (!currentTournament.bracketGenerated) {
+      const eloInput = document.createElement('input');
+      eloInput.type = 'number';
+      eloInput.placeholder = 'ELO';
+      eloInput.value = p.elo !== null ? p.elo : '';
+      eloInput.style.width = '80px';
+      eloInput.style.background = 'transparent';
+      eloInput.style.borderBottom = '1px solid #00E5FF';
+      eloInput.style.color = '#00E5FF';
+      eloInput.addEventListener('change', (e) => {
+        let val = parseInt(e.target.value);
+        if (isNaN(val) || val < 0) val = null;
+        p.elo = val;
+        persistState();
+        updatePlayersUI(); // refresca para mostrar el valor y actualizar contador
+      });
+      eloCell.appendChild(eloInput);
+    } else {
+      eloCell.innerText = p.elo !== null ? p.elo : '—';
+      eloCell.style.color = '#A0B0C8';
+    }
+    // Acciones (eliminar)
+    const delCell = row.insertCell(4);
     const delBtn = document.createElement('button');
-    delBtn.innerText = '❌';
+    delBtn.innerText = 'X';
     delBtn.className = 'delete-player';
     delBtn.onclick = () => {
       if (currentTournament.bracketGenerated) {
-        alert('No puedes modificar jugadores una vez generado el torneo. Usa "Reiniciar torneo completo" para empezar de nuevo.');
+        alert('No puedes modificar jugadores una vez generado el torneo. Usa "REINICIAR TORNEO COMPLETO".');
         return;
       }
       currentTournament.players.splice(idx,1);
@@ -73,9 +128,11 @@ function updatePlayersUI() {
     };
     delCell.appendChild(delBtn);
   });
+  updateGenerateButtonState();
   persistState();
 }
 
+// --- Funciones de emparejamiento y torneo (sin cambios, solo adaptadas a que el ELO puede ser null, pero se llama cuando todos tienen ELO) ---
 function pairByClosestElo(playersList) {
   if (!playersList.length) return [];
   const sorted = [...playersList].sort((a,b) => a.elo - b.elo);
@@ -170,22 +227,21 @@ function propagateWinner(matchId, winnerObj, matchesMap) {
   renderBrackets();
 }
 
-// 🔧 Función para obtener el nombre correcto de cada ronda según el tamaño del torneo
 function getRoundName(roundIndex, totalPlayers) {
   const playersInThisRound = totalPlayers / Math.pow(2, roundIndex);
   switch (playersInThisRound) {
-    case 2: return "🏆 Final";
-    case 4: return "🥇 Semifinales";
-    case 8: return "🥈 Cuartos de final";
-    case 16: return "🥉 Octavos de final";
-    default: return `Ronda ${roundIndex + 1}`;
+    case 2: return "FINAL";
+    case 4: return "SEMIFINALES";
+    case 8: return "CUARTOS DE FINAL";
+    case 16: return "OCTAVOS DE FINAL";
+    default: return `RONDA ${roundIndex + 1}`;
   }
 }
 
 function renderBrackets() {
   const container = document.getElementById('bracketContent');
   if (!currentTournament.bracketGenerated || !currentTournament.matches.length) {
-    container.innerHTML = '<div class="empty-bracket">🏟️ Genera el bracket para comenzar los enfrentamientos 🏟️</div>';
+    container.innerHTML = '<div class="empty-bracket">// GENERA EL BRACKET CUANDO TODOS TENGAN ELO //</div>';
     return;
   }
   const matchesMap = new Map();
@@ -212,25 +268,25 @@ function renderBrackets() {
             const finalWinnerGlobal = currentTournament.finalWinner;
             return `<div class="match-card">
               <div class="match-players">
-                <div class="player-slot" style="${match.winner && match.winner.id === p1?.id ? 'border:2px solid gold;' : ''}">
-                  ${p1 ? `<span class="player-name">${escapeHtml(p1.name)}</span><span class="player-elo">${p1.elo}</span>` : '<span>— Esperando —</span>'}
-                  ${p1 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p1.id}">🏆 Ganó</button>` : ''}
+                <div class="player-slot" style="${match.winner && match.winner.id === p1?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
+                  ${p1 ? `<span class="player-name">${escapeHtml(p1.name)}</span><span class="player-elo">${p1.elo}</span>` : '<span>— ESPERANDO —</span>'}
+                  ${p1 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p1.id}">GANO</button>` : ''}
                 </div>
                 <span style="font-weight:bold;"> VS </span>
-                <div class="player-slot" style="${match.winner && match.winner.id === p2?.id ? 'border:2px solid gold;' : ''}">
-                  ${p2 ? `<span class="player-name">${escapeHtml(p2.name)}</span><span class="player-elo">${p2.elo}</span>` : '<span>— Esperando —</span>'}
-                  ${p2 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p2.id}">🏆 Ganó</button>` : ''}
+                <div class="player-slot" style="${match.winner && match.winner.id === p2?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
+                  ${p2 ? `<span class="player-name">${escapeHtml(p2.name)}</span><span class="player-elo">${p2.elo}</span>` : '<span>— ESPERANDO —</span>'}
+                  ${p2 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p2.id}">GANO</button>` : ''}
                 </div>
               </div>
               <div class="match-status">
-                ${hasWinner ? `✅ Ganador: ${escapeHtml(match.winner.name)} (${match.winner.elo})` : (p1 && p2 ? '⚔️ Selecciona al ganador' : '⏳ Esperando rivales')}
+                ${hasWinner ? `GANADOR: ${escapeHtml(match.winner.name)} (${match.winner.elo})` : (p1 && p2 ? 'SELECCIONA GANADOR' : 'ESPERANDO RIVALES')}
               </div>
             </div>`;
           }).join('')}
         </div>
       </div>`;
     }).join('')}
-    </div>${currentTournament.finalWinner ? `<div class="final-winner">🏆 CAMPEÓN: ${escapeHtml(currentTournament.finalWinner.name)} (ELO ${currentTournament.finalWinner.elo}) 🏆</div>` : ''}`;
+    </div>${currentTournament.finalWinner ? `<div class="final-winner">CAMPEON: ${escapeHtml(currentTournament.finalWinner.name)} (ELO ${currentTournament.finalWinner.elo})</div>` : ''}`;
   container.innerHTML = bracketHtml;
 
   document.querySelectorAll('.btn-win').forEach(btn => {
@@ -260,6 +316,11 @@ function generateBracket() {
     alert(`Debes tener exactamente ${requiredSize} jugadores inscritos. Actualmente: ${currentTournament.players.length}`);
     return;
   }
+  const allHaveElo = currentTournament.players.every(p => p.elo !== null && p.elo > 0);
+  if (!allHaveElo) {
+    alert('Todos los jugadores deben tener un ELO asignado antes de generar el bracket.');
+    return;
+  }
   const pairs = pairByClosestElo(currentTournament.players);
   if (pairs.length !== requiredSize/2) {
     alert('Error en el número de enfrentamientos iniciales');
@@ -272,6 +333,7 @@ function generateBracket() {
   currentTournament.finalWinner = null;
   persistState();
   renderBrackets();
+  updatePlayersUI(); // para que los campos ELO se vuelvan solo texto
 }
 
 function resetBracketState() {
@@ -281,6 +343,7 @@ function resetBracketState() {
   currentTournament.finalWinner = null;
   persistState();
   renderBrackets();
+  updatePlayersUI();
 }
 
 function fullReset() {
@@ -296,33 +359,36 @@ function fullReset() {
   updatePlayersUI();
   renderBrackets();
   document.getElementById('playerName').value = '';
-  document.getElementById('playerElo').value = '';
+  document.getElementById('playerDesc').value = '';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addPlayerBtn').addEventListener('click', () => {
     if (currentTournament.bracketGenerated) {
-      alert('Torneo ya generado, no puedes añadir jugadores. Usa "Reiniciar torneo completo".');
+      alert('Torneo ya generado. Usa "REINICIAR TORNEO COMPLETO" para empezar de nuevo.');
       return;
     }
     const name = document.getElementById('playerName').value.trim();
-    const eloRaw = document.getElementById('playerElo').value;
     if (!name) { alert('Nombre del jugador requerido'); return; }
-    const elo = parseInt(eloRaw);
-    if (isNaN(elo) || elo < 0) { alert('ELO válido (número positivo)'); return; }
+    const description = document.getElementById('playerDesc').value.trim() || '';
     if (currentTournament.players.length >= currentTournament.size) {
       alert(`Máximo ${currentTournament.size} jugadores. Elimina alguno o cambia tipo de torneo.`);
       return;
     }
-    currentTournament.players.push({ name: name, elo: elo, id: generateId() });
+    currentTournament.players.push({
+      id: generateId(),
+      name: name,
+      description: description,
+      elo: null
+    });
     updatePlayersUI();
     document.getElementById('playerName').value = '';
-    document.getElementById('playerElo').value = '';
+    document.getElementById('playerDesc').value = '';
   });
 
   document.getElementById('resetPlayersBtn').addEventListener('click', () => {
     if (currentTournament.bracketGenerated) {
-      alert('Torneo ya generado, usa "Reiniciar torneo completo" para borrar todo.');
+      alert('Torneo ya generado. Usa "REINICIAR TORNEO COMPLETO".');
       return;
     }
     currentTournament.players = [];
@@ -344,6 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updatePlayersUI();
     }
     persistState();
+    updateGenerateButtonState();
   });
 
   if (!loadPersistedState()) {
