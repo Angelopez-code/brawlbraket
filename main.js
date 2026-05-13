@@ -37,7 +37,7 @@ function loadPersistedState() {
     if (currentTournament.bracketGenerated && currentTournament.matches.length) {
       renderBrackets();
     } else {
-      document.getElementById('bracketContent').innerHTML = '<div class="empty-bracket">🎮 Torneo no generado. Completa los jugadores y genera brackets.</div>';
+      document.getElementById('bracketContent').innerHTML = '<div class="empty-bracket">Torneo no generado. Completa los jugadores y genera brackets.</div>';
     }
     return true;
   } catch(e) { return false; }
