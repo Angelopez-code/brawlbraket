@@ -1,6 +1,6 @@
 let currentTournament = {
   size: 8,
-  players: [],        // cada jugador: { id, name, description, elo (null o número) }
+  players: [],
   bracketGenerated: false,
   matches: [],
   roundsStructure: [],
@@ -74,7 +74,7 @@ function updatePlayersUI() {
   progressSpan.innerText = `ELO: ${withElo}/${totalPlayers}`;
 
   if (totalPlayers === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">SIN JUGADORES INSCRITOS</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">SIN JUGADORES INSCRITOS</td></tr>';
     updateGenerateButtonState();
     return;
   }
@@ -83,13 +83,12 @@ function updatePlayersUI() {
     const row = tbody.insertRow();
     row.insertCell(0).innerText = idx+1;
     row.insertCell(1).innerText = p.name;
-    // Descripción con tooltip si es larga
-    const descCell = row.insertCell(2);
+    row.insertCell(2).innerText = p.tiktok || '—';
+    const descCell = row.insertCell(3);
     const descText = p.description || '—';
     descCell.innerText = descText.length > 20 ? descText.substring(0, 18)+'…' : descText;
     descCell.title = p.description || '';
-    // Celda ELO: editable si no hay torneo generado
-    const eloCell = row.insertCell(3);
+    const eloCell = row.insertCell(4);
     if (!currentTournament.bracketGenerated) {
       const eloInput = document.createElement('input');
       eloInput.type = 'number';
@@ -104,15 +103,14 @@ function updatePlayersUI() {
         if (isNaN(val) || val < 0) val = null;
         p.elo = val;
         persistState();
-        updatePlayersUI(); // refresca para mostrar el valor y actualizar contador
+        updatePlayersUI();
       });
       eloCell.appendChild(eloInput);
     } else {
       eloCell.innerText = p.elo !== null ? p.elo : '—';
       eloCell.style.color = '#A0B0C8';
     }
-    // Acciones (eliminar)
-    const delCell = row.insertCell(4);
+    const delCell = row.insertCell(5);
     const delBtn = document.createElement('button');
     delBtn.innerText = 'X';
     delBtn.className = 'delete-player';
@@ -132,7 +130,6 @@ function updatePlayersUI() {
   persistState();
 }
 
-// --- Funciones de emparejamiento y torneo (sin cambios, solo adaptadas a que el ELO puede ser null, pero se llama cuando todos tienen ELO) ---
 function pairByClosestElo(playersList) {
   if (!playersList.length) return [];
   const sorted = [...playersList].sort((a,b) => a.elo - b.elo);
@@ -227,6 +224,60 @@ function propagateWinner(matchId, winnerObj, matchesMap) {
   renderBrackets();
 }
 
+function undoMatchWinner(matchId) {
+  const match = currentTournament.matches.find(m => m.id === matchId);
+  if (!match) return;
+  if (!match.winner) return;
+  match.winner = null;
+  const matchesMap = new Map(currentTournament.matches.map(m => [m.id, m]));
+  function clearParentWinners(m) {
+    if (m.parentMatchId) {
+      const parent = matchesMap.get(m.parentMatchId);
+      if (parent) {
+        parent.winner = null;
+        updateMatchParticipants(parent, matchesMap);
+        clearParentWinners(parent);
+      }
+    }
+  }
+  clearParentWinners(match);
+  currentTournament.matches = Array.from(matchesMap.values());
+  currentTournament.finalWinner = null;
+  persistState();
+  renderBrackets();
+}
+
+function clearAllWinners() {
+  if (!currentTournament.bracketGenerated) return;
+  currentTournament.matches.forEach(m => m.winner = null);
+  currentTournament.finalWinner = null;
+  persistState();
+  renderBrackets();
+}
+
+function regenerateBrackets() {
+  if (!currentTournament.bracketGenerated) return;
+  const requiredSize = currentTournament.size;
+  if (currentTournament.players.length !== requiredSize) {
+    alert(`Debes tener exactamente ${requiredSize} jugadores inscritos.`);
+    return;
+  }
+  const allHaveElo = currentTournament.players.every(p => p.elo !== null && p.elo > 0);
+  if (!allHaveElo) {
+    alert('Todos los jugadores deben tener un ELO asignado.');
+    return;
+  }
+  const pairs = pairByClosestElo(currentTournament.players);
+  const { matches, rounds } = buildMatchesFromPairs(pairs, requiredSize);
+  currentTournament.matches = matches;
+  currentTournament.roundsStructure = rounds;
+  currentTournament.bracketGenerated = true;
+  currentTournament.finalWinner = null;
+  persistState();
+  renderBrackets();
+  updatePlayersUI();
+}
+
 function getRoundName(roundIndex, totalPlayers) {
   const playersInThisRound = totalPlayers / Math.pow(2, roundIndex);
   switch (playersInThisRound) {
@@ -236,6 +287,36 @@ function getRoundName(roundIndex, totalPlayers) {
     case 16: return "OCTAVOS DE FINAL";
     default: return `RONDA ${roundIndex + 1}`;
   }
+}
+
+function swapMatchPlayers(matchA, matchB) {
+  if (!matchA || !matchB) return;
+  if (matchA.round !== 0 || matchB.round !== 0) return;
+  const tempP1 = matchA.player1;
+  const tempP2 = matchA.player2;
+  matchA.player1 = matchB.player1;
+  matchA.player2 = matchB.player2;
+  matchB.player1 = tempP1;
+  matchB.player2 = tempP2;
+  matchA.winner = null;
+  matchB.winner = null;
+  const matchesMap = new Map(currentTournament.matches.map(m => [m.id, m]));
+  function updateParents(match) {
+    if (match.parentMatchId) {
+      const parent = matchesMap.get(match.parentMatchId);
+      if (parent) {
+        updateMatchParticipants(parent, matchesMap);
+        parent.winner = null;
+        updateParents(parent);
+      }
+    }
+  }
+  updateParents(matchA);
+  updateParents(matchB);
+  currentTournament.matches = Array.from(matchesMap.values());
+  currentTournament.finalWinner = null;
+  persistState();
+  renderBrackets();
 }
 
 function renderBrackets() {
@@ -253,6 +334,9 @@ function renderBrackets() {
   });
   const sortedRounds = Array.from(roundsMap.keys()).sort((a,b)=>a-b);
   const totalPlayers = currentTournament.size;
+  const firstRoundMatches = roundsMap.get(0) || [];
+  const hasWinnerInFirstRound = firstRoundMatches.some(m => m.winner !== null);
+  const canEdit = !hasWinnerInFirstRound && !currentTournament.finalWinner;
 
   const bracketHtml = `<div class="bracket-rounds">
     ${sortedRounds.map(round => {
@@ -265,21 +349,26 @@ function renderBrackets() {
             const p1 = match.player1;
             const p2 = match.player2;
             const hasWinner = !!match.winner;
-            const finalWinnerGlobal = currentTournament.finalWinner;
+            const isFirstRound = (round === 0);
+            const p1TikTok = p1?.tiktok ? escapeHtml(p1.tiktok) : null;
+            const p2TikTok = p2?.tiktok ? escapeHtml(p2.tiktok) : null;
+            const p1Name = p1 ? escapeHtml(p1.name) : '';
+            const p2Name = p2 ? escapeHtml(p2.name) : '';
             return `<div class="match-card">
               <div class="match-players">
                 <div class="player-slot" style="${match.winner && match.winner.id === p1?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
-                  ${p1 ? `<span class="player-name">${escapeHtml(p1.name)}</span><span class="player-elo">${p1.elo}</span>` : '<span>— ESPERANDO —</span>'}
-                  ${p1 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p1.id}">GANO</button>` : ''}
+                  ${p1 ? `<span class="player-name" data-name="${p1Name}" data-tiktok="${p1TikTok || ''}" data-showing="name" style="cursor:pointer;" title="Haz clic para mostrar TikTok">${p1Name}</span><span class="player-elo">${p1.elo}</span>` : '<span>— ESPERANDO —</span>'}
+                  ${p1 && !hasWinner && !currentTournament.finalWinner ? `<button class="btn-win" data-match="${match.id}" data-player="${p1.id}">GANÓ</button>` : ''}
                 </div>
                 <span style="font-weight:bold;"> VS </span>
                 <div class="player-slot" style="${match.winner && match.winner.id === p2?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
-                  ${p2 ? `<span class="player-name">${escapeHtml(p2.name)}</span><span class="player-elo">${p2.elo}</span>` : '<span>— ESPERANDO —</span>'}
-                  ${p2 && !hasWinner && !finalWinnerGlobal ? `<button class="btn-win" data-match="${match.id}" data-player="${p2.id}">GANO</button>` : ''}
+                  ${p2 ? `<span class="player-name" data-name="${p2Name}" data-tiktok="${p2TikTok || ''}" data-showing="name" style="cursor:pointer;" title="Haz clic para mostrar TikTok">${p2Name}</span><span class="player-elo">${p2.elo}</span>` : '<span>— ESPERANDO —</span>'}
+                  ${p2 && !hasWinner && !currentTournament.finalWinner ? `<button class="btn-win" data-match="${match.id}" data-player="${p2.id}">GANÓ</button>` : ''}
                 </div>
+                ${isFirstRound && canEdit && p1 && p2 && !hasWinner ? `<button class="swap-btn" data-match-id="${match.id}" style="background:transparent; border:1px solid #00E5FF; border-radius:20px; padding:2px 6px; margin-left:4px; font-size:0.7rem;">⇄</button>` : ''}
               </div>
               <div class="match-status">
-                ${hasWinner ? `GANADOR: ${escapeHtml(match.winner.name)} (${match.winner.elo})` : (p1 && p2 ? 'SELECCIONA GANADOR' : 'ESPERANDO RIVALES')}
+                ${hasWinner ? `GANADOR: ${escapeHtml(match.winner.name)} (${match.winner.elo}) <button class="undo-win" data-match-id="${match.id}" style="background:transparent; border:1px solid #FF8C00; border-radius:20px; padding:2px 6px; margin-left:8px; font-size:0.65rem; color:#FF8C00;">DESHACER</button>` : (p1 && p2 ? 'SELECCIONA GANADOR' : 'ESPERANDO RIVALES')}
               </div>
             </div>`;
           }).join('')}
@@ -288,6 +377,24 @@ function renderBrackets() {
     }).join('')}
     </div>${currentTournament.finalWinner ? `<div class="final-winner">CAMPEON: ${escapeHtml(currentTournament.finalWinner.name)} (ELO ${currentTournament.finalWinner.elo})</div>` : ''}`;
   container.innerHTML = bracketHtml;
+
+  document.querySelectorAll('.player-name').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentShowing = el.getAttribute('data-showing');
+      const name = el.getAttribute('data-name');
+      const tiktok = el.getAttribute('data-tiktok');
+      if (tiktok && tiktok !== '') {
+        if (currentShowing === 'name') {
+          el.innerText = tiktok;
+          el.setAttribute('data-showing', 'tiktok');
+        } else {
+          el.innerText = name;
+          el.setAttribute('data-showing', 'name');
+        }
+      }
+    });
+  });
 
   document.querySelectorAll('.btn-win').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -306,6 +413,53 @@ function renderBrackets() {
       propagateWinner(matchId, player, matchesMapTemp);
     });
   });
+
+  document.querySelectorAll('.undo-win').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const matchId = btn.dataset.matchId;
+      undoMatchWinner(matchId);
+    });
+  });
+
+  if (canEdit) {
+    document.querySelectorAll('.swap-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const matchId = btn.dataset.matchId;
+        const currentMatch = currentTournament.matches.find(m => m.id === matchId);
+        if (!currentMatch || currentMatch.round !== 0) return;
+        const firstRound = currentTournament.matches.filter(m => m.round === 0 && m.id !== matchId);
+        if (firstRound.length === 0) return;
+        const select = document.createElement('select');
+        select.style.position = 'absolute';
+        select.style.zIndex = '1000';
+        select.style.background = '#0A0A0F';
+        select.style.border = '1px solid #00E5FF';
+        select.style.color = '#00E5FF';
+        select.style.borderRadius = '8px';
+        select.style.padding = '4px';
+        firstRound.forEach(m => {
+          const option = document.createElement('option');
+          option.value = m.id;
+          option.textContent = `${m.player1?.name || '??'} vs ${m.player2?.name || '??'}`;
+          select.appendChild(option);
+        });
+        const rect = btn.getBoundingClientRect();
+        select.style.left = `${rect.left}px`;
+        select.style.top = `${rect.bottom + window.scrollY}px`;
+        select.addEventListener('change', (e2) => {
+          const targetId = e2.target.value;
+          const targetMatch = currentTournament.matches.find(m => m.id === targetId);
+          if (targetMatch) swapMatchPlayers(currentMatch, targetMatch);
+          select.remove();
+        });
+        document.body.appendChild(select);
+        select.focus();
+        select.addEventListener('blur', () => select.remove());
+      });
+    });
+  }
 }
 
 function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
@@ -333,7 +487,7 @@ function generateBracket() {
   currentTournament.finalWinner = null;
   persistState();
   renderBrackets();
-  updatePlayersUI(); // para que los campos ELO se vuelvan solo texto
+  updatePlayersUI();
 }
 
 function resetBracketState() {
@@ -359,6 +513,7 @@ function fullReset() {
   updatePlayersUI();
   renderBrackets();
   document.getElementById('playerName').value = '';
+  document.getElementById('playerTikTok').value = '';
   document.getElementById('playerDesc').value = '';
 }
 
@@ -370,6 +525,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const name = document.getElementById('playerName').value.trim();
     if (!name) { alert('Nombre del jugador requerido'); return; }
+    const tiktok = document.getElementById('playerTikTok').value.trim();
+    if (!tiktok) { alert('El nombre de TikTok es obligatorio'); return; }
     const description = document.getElementById('playerDesc').value.trim() || '';
     if (currentTournament.players.length >= currentTournament.size) {
       alert(`Máximo ${currentTournament.size} jugadores. Elimina alguno o cambia tipo de torneo.`);
@@ -378,11 +535,13 @@ document.addEventListener('DOMContentLoaded', () => {
     currentTournament.players.push({
       id: generateId(),
       name: name,
+      tiktok: tiktok,
       description: description,
       elo: null
     });
     updatePlayersUI();
     document.getElementById('playerName').value = '';
+    document.getElementById('playerTikTok').value = '';
     document.getElementById('playerDesc').value = '';
   });
 
@@ -398,6 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('generateBracketBtn').addEventListener('click', generateBracket);
   document.getElementById('fullResetBtn').addEventListener('click', fullReset);
+  document.getElementById('clearWinnersBtn').addEventListener('click', clearAllWinners);
+  document.getElementById('regenerateBracketBtn').addEventListener('click', regenerateBrackets);
   document.getElementById('tournamentSizeSelect').addEventListener('change', (e) => {
     if (currentTournament.bracketGenerated) {
       alert('No puedes cambiar el tamaño si ya hay torneo activo. Reinicia primero.');
