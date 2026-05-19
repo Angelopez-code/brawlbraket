@@ -15,7 +15,10 @@ body {
   position: relative;
 }
 
-/* Sin texturas, sin puntos, fondo totalmente limpio */
+body::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
 
 .tournament-container {
   max-width: 1400px;
@@ -24,11 +27,9 @@ body {
   z-index: 2;
 }
 
-/* Tarjetas estilo "cristal minimalista" */
 .card {
   background: rgba(10, 15, 25, 0.65);
   backdrop-filter: blur(10px);
-  border-radius: 28px;
   border: 1px solid rgba(0, 229, 255, 0.25);
   box-shadow: 0 0 15px rgba(0, 229, 255, 0.05);
   padding: 1.8rem;
@@ -50,17 +51,9 @@ body {
   border-left: 3px solid #00E5FF;
   padding-left: 1rem;
   margin-bottom: 1.8rem;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   text-transform: uppercase;
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  color: #00E5FF;
 }
 
-/* Formulario */
 .form-group {
   display: flex;
   flex-wrap: wrap;
@@ -93,7 +86,6 @@ input, select, button {
   padding: 0.6rem 0.2rem;
   font-size: 0.9rem;
   color: #E0E4F0;
-  font-weight: 400;
   transition: all 0.2s;
   border-radius: 0;
 }
@@ -102,7 +94,6 @@ input:focus, select:focus {
   outline: none;
   border-bottom-color: #00E5FF;
   box-shadow: 0 2px 0 0 rgba(0, 229, 255, 0.4);
-  background: transparent;
 }
 
 select {
@@ -117,8 +108,6 @@ button {
   font-weight: 600;
   padding: 0.6rem 1.5rem;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: none;
   text-transform: uppercase;
   letter-spacing: 1px;
   font-size: 0.8rem;
@@ -128,7 +117,6 @@ button:hover {
   background: #00E5FF;
   color: #0A0A0F;
   transform: scale(0.96);
-  border-color: #00E5FF;
   box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
 }
 
@@ -136,29 +124,22 @@ button.secondary {
   border-color: #4A5B6E;
   color: #A0B0C8;
 }
-
 button.secondary:hover {
   background: #2A3A4A;
   border-color: #00E5FF;
   color: #00E5FF;
-  box-shadow: none;
 }
-
 button.danger {
   border-color: #FF4D4D;
   color: #FF8A8A;
 }
-
 button.danger:hover {
   background: #FF4D4D;
   color: #0A0A0F;
-  border-color: #FF4D4D;
 }
 
-/* Lista jugadores */
 .players-list {
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 24px;
   padding: 1rem;
   margin-top: 1rem;
   border: 1px solid rgba(0, 229, 255, 0.15);
@@ -174,7 +155,6 @@ button.danger:hover {
   text-align: left;
   padding: 0.8rem 0.3rem;
   border-bottom: 1px solid rgba(0, 229, 255, 0.2);
-  font-weight: 400;
 }
 
 .players-table th {
@@ -190,17 +170,11 @@ button.danger:hover {
   font-size: 1.2rem;
   cursor: pointer;
   color: #FF6B6B;
-  transition: 0.1s;
   padding: 0 0.3rem;
-  box-shadow: none;
-  border: none;
 }
-
 .delete-player:hover {
   color: #FF0000;
   transform: scale(1.1);
-  background: none;
-  border: none;
 }
 
 .badge-count {
@@ -211,170 +185,256 @@ button.danger:hover {
   border-radius: 40px;
   font-weight: 600;
   font-size: 0.8rem;
-  font-family: 'JetBrains Mono', monospace;
 }
 
-/* Brackets futuristas */
+/* ===== SECCIÓN BRACKETS ===== */
 .brackets-view {
   overflow-x: auto;
   padding: 1rem 0;
 }
 
-.bracket-rounds {
+.bracket-tree-classic {
   display: flex;
   flex-direction: row;
-  justify-content: center;
-  gap: 1.8rem;
-  flex-wrap: wrap;
-}
-
-.round {
-  background: rgba(0, 5, 10, 0.6);
-  backdrop-filter: blur(4px);
-  border-radius: 20px;
+  justify-content: flex-start;  /* Columnas desde la izquierda, permitiendo scroll */
+  gap: 2rem;
   padding: 1rem;
-  min-width: 240px;
-  border: 1px solid rgba(0, 229, 255, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  min-width: max-content;
+  position: relative;
 }
 
-.round-title {
-  text-align: center;
-  font-weight: 500;
-  font-family: 'JetBrains Mono', monospace;
-  color: #00E5FF;
-  background: none;
-  -webkit-background-clip: unset;
-  padding: 0.3rem;
-  border-radius: 0;
-  margin-bottom: 1rem;
-  font-size: 0.8rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border-bottom: 1px dashed #00E5FF40;
-  display: inline-block;
-  width: auto;
-  margin-left: auto;
-  margin-right: auto;
+.bracket-lines-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
 }
 
-.matches {
+.bracket-column {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  background: rgba(0, 5, 10, 0.5);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 1rem;
+  width: 280px;  /* Ancho fijo para uniformidad */
+  flex-shrink: 0;  /* Evita que se encojan */
 }
 
-.match-card {
-  background: rgba(10, 18, 28, 0.9);
-  border-radius: 16px;
-  padding: 0.7rem;
-  border: 1px solid #00E5FF30;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  transition: all 0.15s;
-}
-
-.match-card:hover {
-  border-color: #00E5FF;
-  box-shadow: 0 0 8px rgba(0,229,255,0.3);
-}
-
-.match-players {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.player-slot {
-  background: #0A111A;
-  border-radius: 40px;
-  padding: 0.4rem 0.8rem;
-  flex: 1;
+.column-title {
   text-align: center;
-  font-weight: 500;
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #00E5FF;
+  border-bottom: 2px solid #00E5FF;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.column-matches {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;  /* Distribuye el espacio verticalmente alrededor de los partidos */
+  gap: 1.5rem;
+  flex: 1;
+}
+.match-item {
+  background: rgba(10, 18, 28, 0.9);
+  border: 1px solid #00E5FF60;
+  padding: 0.8rem;
+  border-radius: 8px;
+}
+
+.match-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.team {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
-  border: 1px solid #00E5FF20;
-  font-family: 'JetBrains Mono', monospace;
+  padding: 0.5rem 0.7rem;
+  background: #0A111A;
+  border-left: 4px solid #00E5FF;
+  font-size: 1rem;
 }
 
-.player-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.8rem;
-}
-
-.player-elo {
-  font-size: 0.65rem;
+.team.winner {
   background: #00E5FF20;
-  padding: 0.2rem 0.5rem;
-  border-radius: 40px;
-  font-weight: 500;
-  color: #00E5FF;
+  border-left-color: #FFD966;
 }
 
-.btn-win {
-  background: transparent;
-  border: 1px solid #00E5FF;
-  border-radius: 30px;
-  font-size: 0.65rem;
-  padding: 0.25rem 0.7rem;
+.team-name {
   cursor: pointer;
   font-weight: 600;
-  color: #00E5FF;
-  transition: 0.1s;
-  text-transform: uppercase;
+  font-size: 0.95rem;
 }
 
-.btn-win:hover {
+.team-elo {
+  font-size: 0.8rem;
+  background: #00E5FF20;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+}
+
+.win-btn, .undo-win-btn, .swap-match-btn {
+  background: transparent;
+  border: 1.5px solid #00E5FF;
+  border-radius: 20px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  transition: 0.1s;
+}
+.win-btn:hover, .undo-win-btn:hover, .swap-match-btn:hover {
   background: #00E5FF;
   color: #0A0A0F;
   transform: scale(1.02);
-  border-color: #00E5FF;
 }
 
-.match-status {
+.match-winner, .match-status {
+  font-size: 0.8rem;
   text-align: center;
-  font-size: 0.65rem;
-  margin-top: 0.4rem;
-  color: #7A8CA0;
-  font-family: 'JetBrains Mono', monospace;
+  margin-top: 0.5rem;
+  color: #A0B0C8;
 }
 
-.final-winner {
+.final-champion {
   text-align: center;
-  background: #00E5FF15;
-  border: 1.5px solid #00E5FF;
-  margin-top: 1.8rem;
+  margin-top: 2rem;
+  font-size: 1.4rem;
+  font-weight: bold;
+  background: #00E5FF20;
   padding: 0.8rem;
-  border-radius: 60px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #00E5FF;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  font-family: 'Space Grotesk', monospace;
-  backdrop-filter: blur(8px);
+  border: 2px solid #00E5FF;
 }
 
-.empty-bracket {
-  text-align: center;
-  padding: 2rem;
-  color: #5A6E84;
-  font-weight: 400;
-  background: rgba(0,0,0,0.2);
-  border-radius: 24px;
-  border: 1px dashed #00E5FF40;
+/* Tema claro */
+body.light-mode {
+  background: #f0f2f5;
+  color: #1a2a3a;
+}
+body.light-mode .card {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 100, 200, 0.3);
+}
+body.light-mode .card-header {
+  color: #0066cc;
+  border-left-color: #0066cc;
+}
+body.light-mode .input-field label,
+body.light-mode .players-table th,
+body.light-mode .badge-count {
+  color: #0066cc;
+}
+body.light-mode input, body.light-mode select {
+  border-bottom-color: #b0c4de;
+  color: #1a2a3a;
+}
+body.light-mode button:not(.secondary):not(.danger) {
+  border-color: #0066cc;
+  color: #0066cc;
+}
+body.light-mode button:not(.secondary):not(.danger):hover {
+  background: #0066cc;
+  color: white;
+}
+body.light-mode .players-list,
+body.light-mode .bracket-column {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: #ccc;
+}
+body.light-mode .column-title {
+  color: #0066cc;
+  border-bottom-color: #0066cc;
+}
+body.light-mode .team {
+  background: #f0f2f5;
+  border-left-color: #0066cc;
+}
+body.light-mode .team.winner {
+  background: #e6f0ff;
+}
+body.light-mode .team-elo {
+  background: #0066cc20;
+}
+body.light-mode .win-btn, body.light-mode .undo-win-btn, body.light-mode .swap-match-btn {
+  border-color: #0066cc;
+  color: #0066cc;
+}
+body.light-mode .win-btn:hover, body.light-mode .undo-win-btn:hover, body.light-mode .swap-match-btn:hover {
+  background: #0066cc;
+  color: white;
+}
+body.light-mode .match-status {
+  color: #555;
+}
+body.light-mode .final-champion {
+  background: #0066cc20;
+  border-color: #0066cc;
+  color: #0066cc;
+}
+body.light-mode .empty-bracket {
+  color: #666;
+  border-color: #ccc;
+}
+body.light-mode .theme-toggle #themeSwitchBtn {
+  background: rgba(0,100,200,0.1);
+  border-color: #0066cc;
+  color: #0066cc;
+}
+
+/* Tema flotante */
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+}
+#themeSwitchBtn {
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid #00E5FF;
+  border-radius: 30px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
 }
 
 /* Responsive */
-@media (max-width: 780px) {
-  body { padding: 1rem; }
-  .bracket-rounds { gap: 1rem; }
-  .player-slot { font-size: 0.7rem; flex-wrap: wrap; }
-  .card { padding: 1rem; }
-  .card-header { font-size: 1.2rem; }
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+  .form-group {
+    flex-direction: column;
+  }
+  button {
+    width: 100%;
+  }
+  .players-list {
+    overflow-x: auto;
+  }
+  .players-table {
+    min-width: 500px;
+  }
+  .bracket-tree-classic {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  .bracket-column {
+    width: 100%;
+    max-width: 100%;
+  }
+  .column-matches {
+    justify-content: center;
+  }
 }

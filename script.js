@@ -278,17 +278,6 @@ function regenerateBrackets() {
   updatePlayersUI();
 }
 
-function getRoundName(roundIndex, totalPlayers) {
-  const playersInThisRound = totalPlayers / Math.pow(2, roundIndex);
-  switch (playersInThisRound) {
-    case 2: return "FINAL";
-    case 4: return "SEMIFINALES";
-    case 8: return "CUARTOS DE FINAL";
-    case 16: return "OCTAVOS DE FINAL";
-    default: return `RONDA ${roundIndex + 1}`;
-  }
-}
-
 function swapMatchPlayers(matchA, matchB) {
   if (!matchA || !matchB) return;
   if (matchA.round !== 0 || matchB.round !== 0) return;
@@ -319,14 +308,84 @@ function swapMatchPlayers(matchA, matchB) {
   renderBrackets();
 }
 
+function escapeHtml(str) {
+  if(!str) return '';
+  return str.replace(/[&<>]/g, function(m) {
+    if(m==='&') return '&amp;';
+    if(m==='<') return '&lt;';
+    if(m==='>') return '&gt;';
+    return m;
+  });
+}
+
+function drawBracketLines() {
+  // No dibujar líneas en pantallas menores a 768px (tablets y móviles)
+  if (window.innerWidth < 768) return;
+  
+  const container = document.querySelector('.bracket-tree-classic');
+  if (!container) return;
+  
+  const oldSvg = container.querySelector('.bracket-lines-svg');
+  if (oldSvg) oldSvg.remove();
+  
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('bracket-lines-svg');
+  svg.style.position = 'absolute';
+  svg.style.top = '0';
+  svg.style.left = '0';
+  svg.style.width = '100%';
+  svg.style.height = '100%';
+  svg.style.pointerEvents = 'none';
+  svg.style.zIndex = '5';
+  container.style.position = 'relative';
+  container.appendChild(svg);
+  
+  const containerRect = container.getBoundingClientRect();
+  svg.setAttribute('width', containerRect.width);
+  svg.setAttribute('height', containerRect.height);
+  
+  const matches = document.querySelectorAll('.match-item');
+  const positions = new Map();
+  matches.forEach(match => {
+    const matchRect = match.getBoundingClientRect();
+    positions.set(match.dataset.matchId, {
+      right: matchRect.right - containerRect.left,
+      left: matchRect.left - containerRect.left,
+      top: matchRect.top - containerRect.top + (matchRect.height / 2)
+    });
+  });
+  
+  currentTournament.matches.forEach(match => {
+    if (!match.parentMatchId) return;
+    const from = positions.get(match.id);
+    const to = positions.get(match.parentMatchId);
+    if (!from || !to) return;
+    
+    const x1 = from.right;
+    const y1 = from.top;
+    const x2 = to.left;
+    const y2 = to.top;
+    if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) return;
+    
+    const midX = x1 + (x2 - x1) / 2;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const d = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+    path.setAttribute('d', d);
+    const strokeColor = document.body.classList.contains('light-mode') ? '#0066cc' : '#00E5FF';
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('fill', 'none');
+    svg.appendChild(path);
+  });
+}
+
 function renderBrackets() {
   const container = document.getElementById('bracketContent');
   if (!currentTournament.bracketGenerated || !currentTournament.matches.length) {
-    container.innerHTML = '<div class="empty-bracket">// GENERA EL BRACKET CUANDO TODOS TENGAN ELO //</div>';
+    container.innerHTML = '<div class="empty-bracket">// GENERA EL BRACKET DESDE REGISTRO //</div>';
     return;
   }
-  const matchesMap = new Map();
-  currentTournament.matches.forEach(m => matchesMap.set(m.id, m));
+
   const roundsMap = new Map();
   currentTournament.matches.forEach(m => {
     if (!roundsMap.has(m.round)) roundsMap.set(m.round, []);
@@ -334,58 +393,65 @@ function renderBrackets() {
   });
   const sortedRounds = Array.from(roundsMap.keys()).sort((a,b)=>a-b);
   const totalPlayers = currentTournament.size;
-  const firstRoundMatches = roundsMap.get(0) || [];
-  const hasWinnerInFirstRound = firstRoundMatches.some(m => m.winner !== null);
-  const canEdit = !hasWinnerInFirstRound && !currentTournament.finalWinner;
 
-  const bracketHtml = `<div class="bracket-rounds">
-    ${sortedRounds.map(round => {
-      const roundMatches = roundsMap.get(round);
-      const roundTitle = getRoundName(round, totalPlayers);
-      return `<div class="round">
-        <div class="round-title">${roundTitle}</div>
-        <div class="matches">
-          ${roundMatches.map(match => {
-            const p1 = match.player1;
-            const p2 = match.player2;
-            const hasWinner = !!match.winner;
-            const isFirstRound = (round === 0);
-            const p1TikTok = p1?.tiktok ? escapeHtml(p1.tiktok) : null;
-            const p2TikTok = p2?.tiktok ? escapeHtml(p2.tiktok) : null;
-            const p1Name = p1 ? escapeHtml(p1.name) : '';
-            const p2Name = p2 ? escapeHtml(p2.name) : '';
-            return `<div class="match-card">
-              <div class="match-players">
-                <div class="player-slot" style="${match.winner && match.winner.id === p1?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
-                  ${p1 ? `<span class="player-name" data-name="${p1Name}" data-tiktok="${p1TikTok || ''}" data-showing="name" style="cursor:pointer;" title="Haz clic para mostrar TikTok">${p1Name}</span><span class="player-elo">${p1.elo}</span>` : '<span>— ESPERANDO —</span>'}
-                  ${p1 && !hasWinner && !currentTournament.finalWinner ? `<button class="btn-win" data-match="${match.id}" data-player="${p1.id}">GANÓ</button>` : ''}
-                </div>
-                <span style="font-weight:bold;"> VS </span>
-                <div class="player-slot" style="${match.winner && match.winner.id === p2?.id ? 'border:2px solid #00E5FF; background:#00E5FF20;' : ''}">
-                  ${p2 ? `<span class="player-name" data-name="${p2Name}" data-tiktok="${p2TikTok || ''}" data-showing="name" style="cursor:pointer;" title="Haz clic para mostrar TikTok">${p2Name}</span><span class="player-elo">${p2.elo}</span>` : '<span>— ESPERANDO —</span>'}
-                  ${p2 && !hasWinner && !currentTournament.finalWinner ? `<button class="btn-win" data-match="${match.id}" data-player="${p2.id}">GANÓ</button>` : ''}
-                </div>
-                ${isFirstRound && canEdit && p1 && p2 && !hasWinner ? `<button class="swap-btn" data-match-id="${match.id}" style="background:transparent; border:1px solid #00E5FF; border-radius:20px; padding:2px 6px; margin-left:4px; font-size:0.7rem;">⇄</button>` : ''}
-              </div>
-              <div class="match-status">
-                ${hasWinner ? `GANADOR: ${escapeHtml(match.winner.name)} (${match.winner.elo}) <button class="undo-win" data-match-id="${match.id}" style="background:transparent; border:1px solid #FF8C00; border-radius:20px; padding:2px 6px; margin-left:8px; font-size:0.65rem; color:#FF8C00;">DESHACER</button>` : (p1 && p2 ? 'SELECCIONA GANADOR' : 'ESPERANDO RIVALES')}
-              </div>
-            </div>`;
-          }).join('')}
+  let roundNames = [];
+  if (totalPlayers === 16) roundNames = ['Ronda 16', 'Cuartos de final', 'Semifinal', 'Final'];
+  else if (totalPlayers === 8) roundNames = ['Cuartos de final', 'Semifinal', 'Final'];
+  else roundNames = ['Semifinal', 'Final'];
+
+  // Eliminamos el div .bracket-columns interno, las columnas van directamente dentro de .bracket-tree-classic
+  let html = `<div class="bracket-tree-classic">`;
+  
+  sortedRounds.forEach((round, idx) => {
+    const matches = roundsMap.get(round);
+    const roundTitle = roundNames[idx];
+    html += `<div class="bracket-column" data-round="${round}">
+      <div class="column-title">${roundTitle}</div>
+      <div class="column-matches">`;
+    
+    matches.forEach(match => {
+      const p1 = match.player1;
+      const p2 = match.player2;
+      const hasWinner = !!match.winner;
+      const isFinal = (round === sortedRounds[sortedRounds.length-1]);
+      html += `<div class="match-item" data-match-id="${match.id}">
+        <div class="match-teams">
+          <div class="team ${match.winner && match.winner.id === p1?.id ? 'winner' : ''}">
+            ${p1 ? `<span class="team-name" data-name="${escapeHtml(p1.name)}" data-tiktok="${escapeHtml(p1.tiktok || '')}" data-showing="name">${escapeHtml(p1.name)}</span> <span class="team-elo">${p1.elo}</span>` : '<span class="empty-slot">—</span>'}
+            ${p1 && !hasWinner && !currentTournament.finalWinner ? `<button class="win-btn" data-match="${match.id}" data-player="${p1.id}">GANÓ</button>` : ''}
+          </div>
+          <div class="team ${match.winner && match.winner.id === p2?.id ? 'winner' : ''}">
+            ${p2 ? `<span class="team-name" data-name="${escapeHtml(p2.name)}" data-tiktok="${escapeHtml(p2.tiktok || '')}" data-showing="name">${escapeHtml(p2.name)}</span> <span class="team-elo">${p2.elo}</span>` : '<span class="empty-slot">—</span>'}
+            ${p2 && !hasWinner && !currentTournament.finalWinner ? `<button class="win-btn" data-match="${match.id}" data-player="${p2.id}">GANÓ</button>` : ''}
+          </div>
         </div>
+        ${hasWinner ? `<div class="match-winner">Ganador: ${escapeHtml(match.winner.name)} <button class="undo-win-btn" data-match-id="${match.id}">⟳ Deshacer</button></div>` : (p1 && p2 ? '<div class="match-status">⚔️ Selecciona ganador</div>' : '<div class="match-status">Esperando...</div>')}
+        ${!isFinal && !hasWinner && p1 && p2 && round === 0 ? `<button class="swap-match-btn" data-match-id="${match.id}">⇄ Intercambiar</button>` : ''}
       </div>`;
-    }).join('')}
-    </div>${currentTournament.finalWinner ? `<div class="final-winner">CAMPEON: ${escapeHtml(currentTournament.finalWinner.name)} (ELO ${currentTournament.finalWinner.elo})</div>` : ''}`;
-  container.innerHTML = bracketHtml;
-
-  document.querySelectorAll('.player-name').forEach(el => {
+    });
+    html += `</div></div>`;
+  });
+  
+  html += `</div>`;
+  if (currentTournament.finalWinner) {
+    html += `<div class="final-champion">🏆 CAMPEÓN: ${escapeHtml(currentTournament.finalWinner.name)} (ELO ${currentTournament.finalWinner.elo}) 🏆</div>`;
+  }
+  container.innerHTML = html;
+  setTimeout(() => {
+  if (window.innerWidth >= 768) {
+    drawBracketLines();
+  }
+}, 50);
+  
+  // Eventos (igual que antes)
+  document.querySelectorAll('.team-name').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      const currentShowing = el.getAttribute('data-showing');
+      const showing = el.getAttribute('data-showing');
       const name = el.getAttribute('data-name');
       const tiktok = el.getAttribute('data-tiktok');
       if (tiktok && tiktok !== '') {
-        if (currentShowing === 'name') {
+        if (showing === 'name') {
           el.innerText = tiktok;
           el.setAttribute('data-showing', 'tiktok');
         } else {
@@ -395,8 +461,8 @@ function renderBrackets() {
       }
     });
   });
-
-  document.querySelectorAll('.btn-win').forEach(btn => {
+  
+  document.querySelectorAll('.win-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const matchId = btn.dataset.match;
@@ -405,25 +471,22 @@ function renderBrackets() {
       if (!match) return;
       const player = match.player1?.id === playerId ? match.player1 : (match.player2?.id === playerId ? match.player2 : null);
       if (!player) return;
-      if (match.winner || currentTournament.finalWinner) {
-        alert('Este enfrentamiento ya tiene ganador o el torneo ha finalizado.');
-        return;
-      }
+      if (match.winner || currentTournament.finalWinner) return;
       const matchesMapTemp = new Map(currentTournament.matches.map(m => [m.id, m]));
       propagateWinner(matchId, player, matchesMapTemp);
     });
   });
-
-  document.querySelectorAll('.undo-win').forEach(btn => {
+  
+  document.querySelectorAll('.undo-win-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const matchId = btn.dataset.matchId;
       undoMatchWinner(matchId);
     });
   });
-
-  if (canEdit) {
-    document.querySelectorAll('.swap-btn').forEach(btn => {
+  
+  if (!currentTournament.finalWinner && !currentTournament.matches.some(m => m.round === 0 && m.winner)) {
+    document.querySelectorAll('.swap-match-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const matchId = btn.dataset.matchId;
@@ -433,12 +496,11 @@ function renderBrackets() {
         if (firstRound.length === 0) return;
         const select = document.createElement('select');
         select.style.position = 'absolute';
-        select.style.zIndex = '1000';
-        select.style.background = '#0A0A0F';
+        select.style.background = '#1e2129';
         select.style.border = '1px solid #00E5FF';
         select.style.color = '#00E5FF';
-        select.style.borderRadius = '8px';
         select.style.padding = '4px';
+        select.style.zIndex = '1000';
         firstRound.forEach(m => {
           const option = document.createElement('option');
           option.value = m.id;
@@ -461,8 +523,6 @@ function renderBrackets() {
     });
   }
 }
-
-function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
 
 function generateBracket() {
   const requiredSize = currentTournament.size;
@@ -515,6 +575,24 @@ function fullReset() {
   document.getElementById('playerName').value = '';
   document.getElementById('playerTikTok').value = '';
   document.getElementById('playerDesc').value = '';
+}
+
+// Tema claro/oscuro
+const themeBtn = document.getElementById('themeSwitchBtn');
+if (themeBtn) {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    themeBtn.textContent = '☀️ Modo Oscuro';
+  } else {
+    themeBtn.textContent = '🌙 Modo Claro';
+  }
+  themeBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    themeBtn.textContent = isLight ? '☀️ Modo Oscuro' : '🌙 Modo Claro';
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -578,4 +656,14 @@ document.addEventListener('DOMContentLoaded', () => {
     fullReset();
   }
   updatePlayersUI();
+  window.addEventListener('resize', () => {
+  if (currentTournament.bracketGenerated) {
+    if (window.innerWidth < 768) {
+      const svg = document.querySelector('.bracket-lines-svg');
+      if (svg) svg.remove();
+    } else {
+      setTimeout(drawBracketLines, 100);
+    }
+  }
+});
 });

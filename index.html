@@ -5,12 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>Torneos Brawl Stars - Sistema por fases</title>
   <link rel="stylesheet" href="style.css">
+  
 </head>
 <body>
+  <div class="theme-toggle">
+    <button id="themeSwitchBtn">🌙 Modo Claro</button>
+  </div>
   <div class="tournament-container">
     <div class="card">
       <div class="card-header">
-        // CONFIGURACION DEL TORNEO
+        CONFIGURACION DEL TORNEO
       </div>
       <div class="form-group">
         <div class="input-field">
@@ -38,7 +42,7 @@
 
       <div class="players-list">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-          <strong>// JUGADORES INSCRITOS</strong>
+          <strong>JUGADORES INSCRITOS</strong>
           <div style="display: flex; gap: 1.5rem;">
             <span id="playerCountInfo" class="badge-count">0</span>
             <span id="eloProgressInfo" class="badge-count" style="border-color: #4A5B6E; color: #A0B0C8;">ELO: 0/0</span>
@@ -46,7 +50,7 @@
         </div>
         <table class="players-table" id="playersTable">
           <thead>
-            <tr><th>#</th><th>NOMBRE JUEGO</th><th>TIKTOK</th><th>DESCRIPCION</th><th>ELO</th><th></th></tr>
+            <tr><th>#</th><th>NOMBRE JUEGO</th><th>TIKTOK</th><th>DESCRIPCIÓN</th><th>ELO</th><th></th></tr>
           </thead>
           <tbody id="playersTbody"></tbody>
         </table>
@@ -59,14 +63,14 @@
 
     <div class="card" id="bracketCard">
       <div class="card-header">
-        // BRACKETS - ENFRENTAMIENTOS
+      BRACKETS - ENFRENTAMIENTOS
       </div>
       <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
         <button id="clearWinnersBtn" class="secondary" style="border-color:#FF8C00; color:#FF8C00;">LIMPIAR GANADORES</button>
         <button id="regenerateBracketBtn" class="secondary" style="border-color:#00E5FF; color:#00E5FF;">REGENERAR BRACKETS</button>
       </div>
       <div id="bracketContent" class="brackets-view">
-        <div class="empty-bracket">// INSCRIBIR JUGADORES Y ASIGNAR ELO //</div>
+        <div class="empty-bracket">INSCRIBIR JUGADORES Y ASIGNAR ELO</div>
       </div>
     </div>
 
@@ -74,6 +78,6 @@
       <button id="fullResetBtn" class="danger">REINICIAR TORNEO COMPLETO</button>
     </div>
   </div>
-  <script src="main.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
